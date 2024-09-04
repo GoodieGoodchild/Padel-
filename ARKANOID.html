@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enhanced Paddle Game with Power-Ups and Dynamic Backgrounds</title>
+    <style>
+        * { padding: 0; margin: 0; }
+        canvas { background: #eee; display: block; margin: 0 auto; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: #00FF7F;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .starry-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+        }
+
+        #gameContainer {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #myCanvas {
+            background: #000;
+            border: 3px solid #00FF7F;
+            display: block;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px #00FF7F;
+        }
+
+        #startButton, #settingsButton {
+            background-color: #FF4500;
+            color: #fff;
+            font-family: 'Press Start 2P', cursive;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 0 15px #FF4500;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+
+        #startButton:hover, #settingsButton:hover {
+            background-color: #FF6347;
+            box-shadow: 0 0 25px #FF6347;
+        }
+
+        #settingsMenu {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            padding: 20px;
+            border: 3px solid #FF4500;
+            box-shadow: 0 0 15px #FF4500;
+            z-index: 10;
+        }
+
+        .retro-text {
+            color: #00FF7F;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Background for Starry Effect -->
+<div class="starry-background"></div>
+
+<!-- Game Container with Canvas and Buttons -->
+<div id="gameContainer">
+    <div class="retro-text">Welcome to Arkanoid Paddle Game!</div>
+    <canvas id="myCanvas" width="800" height="600"></canvas>
+    <button id="startButton">START GAME</button>
+    <button id="settingsButton">SETTINGS</button>
+</div>
+
+<!-- Settings Menu for Resolution and Graphics Quality -->
+<div id="settingsMenu">
+    <h3 style="color: #00FF7F;">Settings</h3>
+    <label for="resolutionSelect" style="color: #FFF;">Resolution:</label>
+    <select id="resolutionSelect">
+        <option value="800x600">800 x 600</option>
+        <option value="1024x768">1024 x 768</option>
+    </select>
+    <br><br>
+    <label for="graphicsSelect" style="color: #FFF;">Graphics:</label>
+    <select id="graphicsSelect">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+    </select>
+    <br><br>
+    <button id="applySettingsButton">APPLY SETTINGS</button>
+    <button id="closeSettingsButton">CLOSE</button>
+</div>
+
+<script>
+// Starry Background Effect
+const starryBackground = document.querySelector('.starry-background');
+const numStars = 100;
+
+for (let i = 0; i < numStars; i++) {
+    let star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = `${Math.random() * 100}%`;
+    star.style.top = `${Math.random() * 100}%`;
+    starryBackground.appendChild(star);
+}
+
+function animateStars() {
+    const stars = document.querySelectorAll('.star');
+    stars.forEach(star => {
+        let top = parseFloat(star.style.top);
+        top += 0.1; // Speed of stars moving down
+        if (top > 100) {
+            top = 0; // Reset star to top once it goes out of view
+        }
+        star.style.top = `${top}%`;
+    });
+    requestAnimationFrame(animateStars);
+}
+
+animateStars();
+
+// Paddle Game Variables
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+var ballRadius = 12;
+var balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: 3, dy: -3 }];
+var paddleHeight = 15;
+var paddleWidth = 120;
+var paddleX = (canvas.width - paddleWidth) / 2;
+var rightPressed = false;
+var leftPressed = false;
+var brickRowCount;
+var brickColumnCount;
+var brickWidth;
+var brickHeight = 30;
+var brickPadding = 10;
+var brickOffsetTop = 50;
+var brickOffsetLeft;
+var bricks = [];
+var gameRunning = false;
+var currentLevel = 1;
+var score = 0;
+var lives = 3;
+var powerUps = [];
+var fireballActive = false;
+var stickyPaddleActive = false;
+var laserShots = [];
+var laserActive = false; // Laser power-up active state
+var selectedResolution = '800x600';
+var selectedGraphics = 'medium';
+var backgrounds = ['url(level1.jpg)', 'url(level2.jpg)']; // Example background images for levels
+
+// Event Listeners for Buttons and Controls
+document.getElementById("startButton").addEventListener("click", startGame, false);
+document.getElementById("settingsButton").addEventListener("click", openSettingsMenu, false);
+document.getElementById("applySettingsButton").addEventListener("click", applySettings, false);
+document.getElementById("closeSettingsButton").addEventListener("click", closeSettingsMenu, false);
+
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false);
+
+// Start Game Function
+function startGame() {
+    if (!gameRunning) {
+        gameRunning = true;
+        setupBricks(); // Initialize bricks based on settings
+        draw();
+        document.getElementById("startButton").style.display = 'none'; // Hide button after starting
+        document.getElementById("settingsButton").style.display = 'none'; // Hide settings button after starting
+        changeBackground(currentLevel); // Set initial background
+    }
+}
+
+// Function to Setup Bricks Layout for Different Levels
+function setupBricks() {
+    if (currentLevel === 1) {
+        brickRowCount = 3; // Example values for level 1
+        brickColumnCount = 7;
+    } else if (currentLevel === 2) {
+        brickRowCount = 5; // Example values for level 2
+        brickColumnCount = 10;
+    }
+
+    brickWidth = (canvas.width - (brickColumnCount - 1) * brickPadding) / brickColumnCount;
+    brickOffsetLeft = (canvas.width - (brickColumnCount * (brickWidth + brickPadding) - brickPadding)) / 2;
+    createBricks();
+}
+
+// Open Settings Menu
+function openSettingsMenu() {
+    document.getElementById("settingsMenu").style.display = 'block';
+}
+
+// Close Settings Menu
+function closeSettingsMenu() {
+    document.getElementById("settingsMenu").style.display = 'none';
+}
+
+// Apply Settings for Resolution and Graphics Quality
+function applySettings() {
+    selectedResolution = document.getElementById("resolutionSelect").value;
+    selectedGraphics = document.getElementById("graphicsSelect").value;
+
+    if (selectedResolution === '1024x768') {
+        canvas.width = 1024;
+        canvas.height = 768;
+    } else {
+        canvas.width = 800;
+        canvas.height = 600;
+    }
+
+    // Update graphics based on selected option
+    switch (selectedGraphics) {
+        case 'low':
+            ctx.shadowBlur = 2;
+            break;
+        case 'medium':
+            ctx.shadowBlur = 5;
+            break;
+        case 'high':
+            ctx.shadowBlur = 10;
+            break;
+    }
+
+    setupBricks(); // Recalculate brick layout
+    closeSettingsMenu();
+}
+
+// Key Handlers for Paddle Movement and Shooting Laser
+function keyDownHandler(e) {
+    if (e.code == "ArrowRight") {
+        rightPressed = true;
+    } else if (e.code == 'ArrowLeft') {
+        leftPressed = true;
+    }
+    // Handle laser shooting only if laser power-up is active
+    if (e.code === 'Space' && laserActive && gameRunning) {
+        shootLaser();
+    }
+}
+
+function keyUpHandler(e) {
+    if (e.code == "ArrowRight") {
+        rightPressed = false;
+    } else if (e.code == 'ArrowLeft') {
+        leftPressed = false;
+    }
+}
+
+// Create Bricks Function for Each Level
+function createBricks() {
+    bricks = [];
+    for (var c = 0; c < brickColumnCount; c++) {
+        bricks[c] = [];
+        for (var r = 0; r < brickRowCount; r++) {
+            let powerUp = Math.random() < 0.2 ? true : false; // Randomly decide if brick contains a power-up
+            bricks[c][r] = { x: 0, y: 0, status: 1, powerUp: powerUp };
+        }
+    }
+}
+
+// Draw Bricks with Dynamic Layout
+function drawBricks() {
+    for (var c = 0; c < brickColumnCount; c++) {
+        for (var r = 0; r < brickRowCount; r++) {
+            if (bricks[c][r].status == 1) {
+                var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+
+                if (isFinite(brickX) && isFinite(brickY) && isFinite(brickWidth) && isFinite(brickHeight)) {
+                    bricks[c][r].x = brickX;
+                    bricks[c][r].y = brickY;
+                    ctx.beginPath();
+
+                    var gradient = ctx.createLinearGradient(brickX, brickY, brickX + brickWidth, brickY + brickHeight);
+                    gradient.addColorStop(0, '#7FFF00');
+                    gradient.addColorStop(1, '#32CD32');
+
+                    ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 5);
+                    ctx.fillStyle = gradient;
+                    ctx.shadowColor = "black";
+                    ctx.fill();
+                    ctx.closePath();
+                } else {
+                    console.warn('Invalid brick coordinates:', brickX, brickY, brickWidth, brickHeight);
+                }
+            }
+        }
+    }
+}
+
+// Function to Change Background Based on Current Level
+function changeBackground(level) {
+    document.body.style.backgroundImage = backgrounds[level - 1];
+    document.body.style.backgroundSize = 'cover';
+}
+
+// Draw Function - Main Game Loop
+function draw() {
+    if (!gameRunning) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBricks();
+    drawPaddle();
+    drawPowerUps();
+    drawLasers();
+    for (let i = 0; i < balls.length; i++) {
+        drawBall(balls[i]);
+    }
+    drawScore();
+    drawLives();
+    collisionDetection();
+
+    for (let i = 0; i < balls.length; i++) {
+        let ball = balls[i];
+        if (ball.x + ball.dx > canvas.width - ballRadius || ball.x + ball.dx < ballRadius) {
+            ball.dx = -ball.dx;
+        }
+        if (ball.y + ball.dy < ballRadius) {
+            ball.dy = -ball.dy;
+        } else if (ball.y + ball.dy > canvas.height - ballRadius) {
+            if (ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                let paddleCenter = paddleX + paddleWidth / 2;
+                let hitPos = (ball.x - paddleCenter) / (paddleWidth / 2);
+                ball.dx = hitPos * 5;
+                ball.dy = -Math.abs(ball.dy);
+            } else {
+                balls.splice(i, 1);
+                lives--;
+                if (lives > 0) {
+                    resetBall();
+                } else {
+                    gameRunning = false;
+                    alert("GAME OVER");
+                    document.location.reload();
+                }
+            }
+        }
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+    }
+
+    if (rightPressed && paddleX < canvas.width - paddleWidth) {
+        paddleX += 7;
+    } else if (leftPressed && paddleX > 0) {
+        paddleX -= 7;
+    }
+
+    requestAnimationFrame(draw);
+}
+
+// Draw Ball Function
+function drawBall(ball) {
+    ctx.beginPath();
+    var gradient = ctx.createRadialGradient(ball.x, ball.y, ballRadius / 4, ball.x, ball.y, ballRadius);
+    gradient.addColorStop(0, '#FF4500');
+    gradient.addColorStop(1, '#0095DD');
+    ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "black";
+    ctx.fill();
+    ctx.closePath();
+}
+
+// Draw Paddle Function
+function drawPaddle() {
+    ctx.beginPath();
+    var gradient = ctx.createLinearGradient(paddleX, canvas.height - paddleHeight, paddleX + paddleWidth, canvas.height);
+    gradient.addColorStop(0, '#FF6347');
+    gradient.addColorStop(1, '#FF4500');
+    ctx.roundRect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight, 5);
+    ctx.fillStyle = gradient;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "black";
+    ctx.fill();
+    ctx.closePath();
+}
+
+// Function to Draw Lasers
+function drawLasers() {
+    laserShots.forEach((laser, index) => {
+        ctx.beginPath();
+        ctx.rect(laser.x, laser.y, 2, 10);
+        ctx.fillStyle = "#FF4500";
+        ctx.fill();
+        ctx.closePath();
+        laser.y -= 4; // Laser speed
+
+        // Check for collisions with bricks
+        bricks.forEach(column => {
+            column.forEach(brick => {
+                if (brick.status == 1 && laser.y < brick.y + brickHeight && laser.y > brick.y &&
+                    laser.x > brick.x && laser.x < brick.x + brickWidth) {
+                    brick.status = 0;
+                    score += 10; // Increase score
+                    laserShots.splice(index, 1); // Remove laser
+                }
+            });
+        });
+
+        // Remove laser if it goes off the screen
+        if (laser.y < 0) {
+            laserShots.splice(index, 1);
+        }
+    });
+}
+
+// Function to Draw Power-Ups and Manage Their Collection
+function drawPowerUps() {
+    powerUps.forEach((powerUp, index) => {
+        if (powerUp.active) {
+            ctx.beginPath();
+
+            // Define a unique color for each power-up type
+            let color;
+            switch (powerUp.type) {
+                case 'wider':
+                    color = '#FF4500'; // Orange
+                    break;
+                case 'multiBall':
+                    color = '#1E90FF'; // Dodger Blue
+                    break;
+                case 'sticky':
+                    color = '#8A2BE2'; // Blue Violet
+                    break;
+                case 'slow':
+                    color = '#FFFF00'; // Yellow
+                    break;
+                case 'fireball':
+                    color = '#FF6347'; // Tomato
+                    break;
+                case 'shrink':
+                    color = '#FF1493'; // Deep Pink
+                    break;
+                case 'tripleBall':
+                    color = '#32CD32'; // Lime Green
+                    break;
+                case 'expandBall':
+                    color = '#FFD700'; // Gold
+                    break;
+                case 'laser':
+                    color = '#FF00FF'; // Magenta
+                    break;
+                case 'reverse':
+                    color = '#00CED1'; // Dark Turquoise
+                    break;
+                case 'shield':
+                    color = '#00FF7F'; // Spring Green
+                    break;
+                case 'gravity':
+                    color = '#DC143C'; // Crimson
+                    break;
+                case 'explosive':
+                    color = '#FF4500'; // Orange Red
+                    break;
+                case 'invisible':
+                    color = '#708090'; // Slate Gray
+                    break;
+                case 'multiPaddle':
+                    color = '#FF8C00'; // Dark Orange
+                    break;
+                default:
+                    color = '#FFFFFF'; // White for any undefined power-up
+            }
+
+            // Draw a 'can' shape to represent the power-up
+            ctx.fillStyle = color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = color;
+            ctx.ellipse(powerUp.x, powerUp.y, powerUp.width, powerUp.height / 2, Math.PI / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.closePath();
+
+            // Move the power-up down the screen
+            powerUp.y += 2; // Falling speed
+
+            // Check if power-up is caught by the paddle
+            if (powerUp.y + powerUp.height > canvas.height - paddleHeight &&
+                powerUp.x > paddleX && powerUp.x < paddleX + paddleWidth) {
+                activatePowerUp(powerUp.type);
+                powerUp.active = false; // Deactivate power-up
+            }
+
+            // Remove power-up if it falls off the screen
+            if (powerUp.y > canvas.height) {
+                powerUps.splice(index, 1);
+            }
+        }
+    });
+}
+
+// Function to Activate Power-Ups
+function activatePowerUp(type) {
+    switch (type) {
+        case 'wider':
+            paddleWidth += 50;
+            setTimeout(() => { paddleWidth -= 50; }, 10000);
+            break;
+        case 'multiBall':
+            addBall();
+            addBall();
+            break;
+        case 'sticky':
+            stickyPaddleActive = true;
+            setTimeout(() => { stickyPaddleActive = false; }, 10000);
+            break;
+        case 'slow':
+            balls.forEach(ball => { ball.dx *= 0.5; ball.dy *= 0.5; });
+            setTimeout(() => { balls.forEach(ball => { ball.dx *= 2; ball.dy *= 2; }); }, 10000);
+            break;
+        case 'fireball':
+            fireballActive = true;
+            setTimeout(() => { fireballActive = false; }, 10000);
+            break;
+        case 'shrink':
+            paddleWidth -= 30;
+            setTimeout(() => { paddleWidth += 30; }, 10000);
+            break;
+        case 'tripleBall':
+            addBall(); addBall();
+            break;
+        case 'expandBall':
+            ballRadius += 5;
+            setTimeout(() => { ballRadius -= 5; }, 10000);
+            break;
+        case 'laser':
+            laserActive = true; // Enable laser shooting
+            break;
+        case 'reverse':
+            let temp = leftPressed;
+            leftPressed = rightPressed;
+            rightPressed = temp;
+            setTimeout(() => { temp = leftPressed; leftPressed = rightPressed; rightPressed = temp; }, 7000);
+            break;
+        case 'shield':
+            addShield();
+            break;
+        case 'gravity':
+            createGravityWell();
+            break;
+        case 'explosive':
+            activateExplosiveBricks();
+            break;
+        case 'invisible':
+            makeBallsInvisible();
+            break;
+        case 'multiPaddle':
+            addMultiPaddle();
+            break;
+    }
+}
+
+// Additional functions for power-ups, collision detection, and gameplay logic should go here...
+function addShield() {
+    const shieldHeight = 10;
+    let shieldActive = true;
+
+    function drawShield() {
+        if (shieldActive) {
+            ctx.beginPath();
+            ctx.rect(0, canvas.height - shieldHeight, canvas.width, shieldHeight);
+            ctx.fillStyle = '#FF6347';
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+
+    function checkShieldCollision(ball) {
+        if (shieldActive && ball.y + ball.dy > canvas.height - ballRadius - shieldHeight) {
+            ball.dy = -ball.dy; // Bounce the ball back
+            shieldActive = false; // Shield is used up
+        }
+    }
+
+    drawShield();
+    balls.forEach(checkShieldCollision); // Check for each ball
+}
+
+	// Invisible Ball Logic
+function makeBallsInvisible() {
+    balls.forEach(ball => {
+        ball.invisible = true; // Set ball to be invisible
+    });
+
+    function drawInvisibleBall(ball) {
+        if (ball.invisible) {
+            return; // Skip drawing
+        }
+        drawBall(ball); // Draw normally if not invisible
+    }
+
+    setTimeout(() => {
+        balls.forEach(ball => {
+            ball.invisible = false; // Make balls visible again after 5 seconds
+        });
+    }, 5000);
+}
+
+
+  function shootLaser() {
+        if (laserShots.length < 5) { // Limit number of laser shots
+            laserShots.push({ x: paddleX + paddleWidth / 2, y: canvas.height - paddleHeight - 10 });
+        }
+    }
+
+// Add Ball Function
+function addBall() {
+    let newBall = { x: canvas.width / 2, y: canvas.height - 30, dx: 3, dy: -3 };
+    balls.push(newBall);
+}
+
+// Draw Score Function
+function drawScore() {
+    ctx.font = "16px 'Press Start 2P'";
+    ctx.fillStyle = "#00FF7F";
+    ctx.fillText("Score: " + score, 8, 20);
+}
+
+// Draw Lives Function
+function drawLives() {
+    ctx.font = "16px 'Press Start 2P'";
+    ctx.fillStyle = "#00FF7F";
+    ctx.fillText("Lives: " + lives, canvas.width - 130, 20);
+}
+
+// Collision Detection Function
+function collisionDetection() {
+    let allBricksCleared = true;
+    for (var c = 0; c < brickColumnCount; c++) {
+        for (var r = 0; r < brickRowCount; r++) {
+            var b = bricks[c][r];
+            if (b.status == 1) {
+                allBricksCleared = false; // There's at least one brick left
+                for (let i = 0; i < balls.length; i++) {
+                    let ball = balls[i];
+                    if (ball.x > b.x && ball.x < b.x + brickWidth && ball.y > b.y && ball.y < b.y + brickHeight) {
+                        if (!fireballActive) ball.dy = -ball.dy; // Normal bounce unless fireball is active
+                        b.status = 0;
+                        score += 10; // Increase score for breaking a brick
+                        if (b.powerUp) dropPowerUp(b); // Drop power-up
+                    }
+                }
+            }
+        }
+    }
+    if (allBricksCleared) {
+        nextLevel(); // Proceed to the next level
+    }
+}
+
+// Drop Power-Up from a Brick
+function dropPowerUp(brick) {
+    let powerUpTypes = ['wider', 'multiBall', 'sticky', 'slow', 'fireball', 'shrink', 'tripleBall', 'expandBall', 'laser', 'reverse', 'shield', 'gravity', 'explosive', 'invisible', 'multiPaddle'];
+    let type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+    let powerUp = { x: brick.x + brickWidth / 2, y: brick.y, width: 10, height: 20, type: type, active: true };
+    powerUps.push(powerUp);
+}
+
+// Function to Reset Ball After Losing a Life
+function resetBall() {
+    balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: 3, dy: -3 }];
+    paddleX = (canvas.width - paddleWidth) / 2;
+}
+
+// Function to Move to the Next Level
+function nextLevel() {
+    currentLevel++;
+    balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: balls[0].dx * 1.2, dy: balls[0].dy * 1.2 }]; // Increase speed
+    if (currentLevel == 2) {
+        brickColumnCount = 10; // Update for level 2
+        brickRowCount = 5;
+        brickWidth = (canvas.width - (brickColumnCount - 1) * brickPadding) / brickColumnCount; // Adjust width for more columns
+        brickOffsetLeft = (canvas.width - (brickColumnCount * (brickWidth + brickPadding) - brickPadding)) / 2; // Center the brick field
+    }
+    createBricks(); // Generate new bricks for the next level
+}
+
+// Adding roundRect function to CanvasRenderingContext2D for rounded corners
+CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
+    this.beginPath();
+    this.moveTo(x + radius, y);
+    this.lineTo(x + width - radius, y);
+    this.quadraticCurveTo(x + width, y, x + width, y + radius);
+    this.lineTo(x + width, y + height - radius);
+    this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    this.lineTo(x + radius, y + height);
+    this.quadraticCurveTo(x, y + height, x, y + height - radius);
+    this.lineTo(x, y + radius);
+    this.quadraticCurveTo(x, y, x + radius, y);
+    this.closePath();
+};
+
+</script>
+
+</body>
+</html> 
