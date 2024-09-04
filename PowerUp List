@@ -52,7 +52,15 @@ Crimson (#DC143C)
 
 Explosive Bricks
 Orange Red (#FF4500)
-
+Problem:
+The ball stops on the padel and the game ends. 
+The message displayed in the console is(bug):
+ARKANOID.html:577 Uncaught ReferenceError: activateExplosiveBricks is not defined
+    at activatePowerUp (ARKANOID.html:577:13)
+    at ARKANOID.html:515:17
+    at Array.forEach (<anonymous>)
+    at drawPowerUps (ARKANOID.html:445:14)
+    at draw (ARKANOID.html:338:5)
 
 Invisible Ball
 Slate Gray (#708090)
