@@ -1,1 +1,36 @@
+Check to see if the function is called, add the function into your code base.
+case 'invisible':
+    makeBallsInvisible();
+    break;
 
+
+// Function to Make Balls Invisible
+function makeBallsInvisible() {
+    balls.forEach(ball => {
+        ball.invisible = true; // Mark ball as invisible
+    });
+
+    // Redefine drawBall function to handle invisible balls
+    let originalDrawBall = drawBall;  // Store the original drawBall function
+
+    drawBall = function(ball) {
+        if (ball.invisible) {
+            // Draw an outline without fill to simulate invisibility
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0)';  // Invisible stroke
+            ctx.stroke();
+            ctx.closePath();
+        } else {
+            originalDrawBall(ball);  // Call the original drawBall function
+        }
+    };
+
+    // Set a timer to revert to the original drawing function after 10 seconds
+    setTimeout(() => {
+        balls.forEach(ball => {
+            ball.invisible = false;  // Make balls visible again
+        });
+        drawBall = originalDrawBall;  // Restore the original drawBall function
+    }, 10000);
+}
