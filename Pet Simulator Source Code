@@ -1,0 +1,175 @@
+Source Code: Virtual Pet Simulator
+Below is the complete source code for the Virtual Pet Simulator game. This code includes HTML, CSS, and JavaScript to create an interactive pet that students can feed, play with, and care for.
+
+index.html
+html
+Copy code
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Virtual Pet Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Virtual Pet Simulator</h1>
+        <div class="pet-container">
+            <img src="pet-happy.png" alt="Virtual Pet" id="petImage">
+            <div class="stats">
+                <p>Health: <span id="health">100</span></p>
+                <p>Happiness: <span id="happiness">100</span></p>
+                <p>Hunger: <span id="hunger">0</span></p>
+                <p>Cleanliness: <span id="cleanliness">100</span></p>
+            </div>
+        </div>
+        <div class="controls">
+            <button onclick="feedPet()">Feed</button>
+            <button onclick="playWithPet()">Play</button>
+            <button onclick="cleanPet()">Clean</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+styles.css
+css
+Copy code
+body {
+    background-color: #f0f0f0;
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.game-container {
+    text-align: center;
+    background: #fff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    width: 300px;
+}
+
+.pet-container {
+    margin-bottom: 20px;
+}
+
+.pet-container img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid #ffcc00;
+}
+
+.stats {
+    margin-top: 10px;
+    font-size: 18px;
+}
+
+.controls button {
+    padding: 10px 15px;
+    margin: 5px;
+    background-color: #ffcc00;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.controls button:hover {
+    background-color: #ff9900;
+}
+script.js
+javascript
+Copy code
+// Initialize pet stats
+let health = 100;
+let happiness = 100;
+let hunger = 0;
+let cleanliness = 100;
+
+// Update pet stats in the UI
+function updateStats() {
+    document.getElementById('health').innerText = health;
+    document.getElementById('happiness').innerText = happiness;
+    document.getElementById('hunger').innerText = hunger;
+    document.getElementById('cleanliness').innerText = cleanliness;
+}
+
+// Feed the pet
+function feedPet() {
+    hunger -= 10;
+    happiness += 5;
+    cleanliness -= 5;
+    if (hunger < 0) hunger = 0;
+    updateStats();
+    showAction('feeding');
+}
+
+// Play with the pet
+function playWithPet() {
+    happiness += 10;
+    hunger += 5;
+    health -= 5;
+    if (happiness > 100) happiness = 100;
+    if (health < 0) health = 0;
+    updateStats();
+    showAction('playing');
+}
+
+// Clean the pet
+function cleanPet() {
+    cleanliness += 20;
+    health += 5;
+    if (cleanliness > 100) cleanliness = 100;
+    if (health > 100) health = 100;
+    updateStats();
+    showAction('cleaning');
+}
+
+// Show action animation
+function showAction(action) {
+    const petImage = document.getElementById('petImage');
+    petImage.src = `pet-${action}.png`; // Change image based on action
+    setTimeout(() => {
+        petImage.src = 'pet-happy.png'; // Revert to happy pet after 1 second
+    }, 1000);
+}
+
+// Gradually decrease pet stats over time
+setInterval(() => {
+    hunger += 5;
+    happiness -= 5;
+    cleanliness -= 5;
+    if (hunger > 100) hunger = 100;
+    if (happiness < 0) happiness = 0;
+    if (cleanliness < 0) cleanliness = 0;
+    if (hunger >= 80) health -= 5; // Health decreases if hunger is too high
+    updateStats();
+}, 3000); // Every 3 seconds
+
+// Initialize stats display
+updateStats();
+How to Set Up and Test the Game
+Create a folder for the project.
+
+Create three files in that folder:
+index.html
+styles.css
+script.js
+
+Add images for the pet in the same folder:
+pet-happy.png (default pet image when happy)
+pet-feeding.png (pet image when feeding)
+pet-playing.png (pet image when playing)
+pet-cleaning.png (pet image when cleaning)
+
+Open index.html in a web browser to test the game.
+Summary
+This Virtual Pet Simulator project introduces students to web development by creating an interactive and engaging game where they take care of a digital pet. The 7-lesson plan covers HTML, CSS, and JavaScript concepts, making it perfect for learning while having fun.
